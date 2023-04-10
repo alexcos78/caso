@@ -35,7 +35,6 @@ cli_opts = [
     cfg.ListOpt(
         "projects",
         default=[],
-        deprecated_name="tenants",
         help="List of projects to extract accounting records from. You can "
         "use this option, or add 'caso' tag to the project in Keystone. "
         "Please refer to the documentation for more details.",
