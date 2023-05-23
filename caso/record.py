@@ -64,8 +64,8 @@ class CloudRecord(_BaseRecord):
     memory: int
     disk: int
 
-    start_time: datetime.datetime
-    end_time: typing.Optional[datetime.datetime]
+    _start_time: datetime.datetime
+    _end_time: typing.Optional[datetime.datetime] = None
 
     # NOTE(aloga): due to the validation that we are doing below until
     # https://github.com/samuelcolvin/pydantic/issues/935
@@ -81,7 +81,33 @@ class CloudRecord(_BaseRecord):
     benchmark_value: typing.Optional[float]
     benchmark_type: typing.Optional[str]
 
-    @pydantic.computed_field  # type: ignore[misc]
+    def __init__(self, *data, start_time, end_time, **kwargs):
+        super(CloudRecord, self).__init__(*data, **kwargs)
+        self._start_time = start_time
+        self._end_time = end_time
+
+    @pydantic.computed_field(alias="StartTime")  # type: ignore[misc]
+    @property
+    def start_time(self) -> int:
+        return int(self._start_time.timestamp())
+
+    @start_time.setter
+    def start_time(self, start_time: datetime.datetime) -> None:
+        self._start_time = start_time
+
+    @pydantic.computed_field(alias="EndTime")  # type: ignore[misc]
+    @property
+    def end_time(self) -> typing.Optional[int]:
+        if self._end_time is not None:
+            return int(self._end_time.timestamp())
+        else:
+            return None
+
+    @end_time.setter
+    def end_time(self, end_time: datetime.datetime) -> None:
+        self._end_time = end_time
+
+    @pydantic.computed_field(alias="WallDuration")  # type: ignore[misc]
     @property
     def wall_duration(self) -> typing.Optional[int]:
         duration = None
@@ -89,14 +115,13 @@ class CloudRecord(_BaseRecord):
             duration = self._wall_duration
         elif self.end_time:
             duration = self.end_time - self.start_time
-            duration = int(duration.total_seconds())
         return duration
 
     @wall_duration.setter
     def wall_duration(self, wall: int) -> None:
         self._wall_duration = wall
 
-    @pydantic.computed_field  # type: ignore[misc]
+    @pydantic.computed_field(alias="CpuDuration")  # type: ignore[misc]
     @property
     def cpu_duration(self) -> typing.Optional[int]:
         duration = None
@@ -104,7 +129,6 @@ class CloudRecord(_BaseRecord):
             duration = self._cpu_duration
         elif self.wall_duration is not None and self.cpu_count:
             duration = self.wall_duration * self.cpu_count
-            duration = int(duration)
         return duration
 
     @cpu_duration.setter
