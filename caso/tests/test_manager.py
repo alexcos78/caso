@@ -21,7 +21,6 @@ import unittest
 from unittest import mock
 
 from caso import manager
-from caso.tests import base
 
 
 class TestCasoManager(unittest.TestCase):
@@ -48,4 +47,3 @@ class TestCasoManager(unittest.TestCase):
             p.stop()
 
         super(TestCasoManager, self).tearDown()
-

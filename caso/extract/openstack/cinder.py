@@ -54,7 +54,9 @@ class CinderExtractor(base.BaseOpenStackExtractor):
             vol_created = extract_from
 
         active_duration_delta = (extract_to - vol_created)
-        active_duration = (extract_to - vol_created - datetime.timedelta(microseconds=active_duration_delta.microseconds)).total_seconds()
+        active_duration = (extract_to - vol_created -
+                datetime.timedelta(microseconds=
+                    active_duration_delta.microseconds)).total_seconds()
 
         r = record.StorageRecord(
             uuid=volume.id,
