@@ -14,7 +14,6 @@
 
 """Tests for `caso.manager` module."""
 
-from unittest.mock import patch 
 from oslo_concurrency.fixture import lockutils as lock_fixture
 import six
 import unittest
