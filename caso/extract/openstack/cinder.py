@@ -66,6 +66,7 @@ class CinderExtractor(base.BaseOpenStackExtractor):
             active_duration=active_duration,
             measure_time=measure_time,
             start_time=vol_created,
+            volume_creation=int(dateutil.parser.parse(vol_start).timestamp()),
             capacity=volume.size,
             user_dn=user,
         )
