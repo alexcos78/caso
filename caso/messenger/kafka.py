@@ -28,10 +28,12 @@ import caso.messenger
 import json
 #add datetime lib
 import datetime
+from confluent_kafka import Producer, Consumer
 
 opts = [
     cfg.StrOpt("brokers", default="localhost:9092", help="Kafka host to send records to."),
     cfg.StrOpt("topic", default="caso", help="Kafka server topic."),
+    cfg.StrOpt("serviceName", default="caso", help="Kafka server service name."),
     cfg.StrOpt("username", default="username", help="Kafka server username."),
     cfg.StrOpt("password", default="password", help="Kafka server password."),
 ]
@@ -45,15 +47,26 @@ LOG = log.getLogger(__name__)
 class KafkaMessenger(caso.messenger.BaseMessenger):
     """Format and send records to a kafka host."""
 
-    def __init__(self, brokers=CONF.kafka.brokers, topic=CONF.kafka.topic, username=CONF.kafka.username, password=CONF.kafka.password):
+    def __init__(self, brokers=CONF.kafka.brokers, topic=CONF.kafka.topic, serviceName=CONF.kafka.serviceName, username=CONF.kafka.username, password=CONF.kafka.password):
         """Get a logstash messenger for a given host and port."""
         super(KafkaMessenger, self).__init__()
         self.brokers = CONF.kafka.brokers
         self.topic = CONF.kafka.topic
+        self.serviceName = CONF.kafka.serviceName
         self.username = CONF.kafka.username
         self.password = CONF.kafka.password
 
 #        self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    def delivery_report(self, err, msg):
+        """ Called once for each message produced to indicate delivery result.
+        Triggered by poll() or flush(). """
+        if err is not None:
+            print('Message delivery failed: {}'.format(err))
+        else:
+            print('Message delivered to {} [{}]'.format(msg.topic(), msg.partition()))
+
+
 
     def push(self, records):
 
@@ -67,28 +80,50 @@ class KafkaMessenger(caso.messenger.BaseMessenger):
         cdt = datetime.datetime.now()
         ct = int(datetime.datetime.now().timestamp())
 
-        #Open the connection with LS
-#        self.sock.connect((self.host, self.port))
+        # Producer
+        conf = {
+            'bootstrap.servers': self.brokers,
+            'security.protocol': 'SASL_PLAINTEXT',
+#            'enable.ssl.certificate.verification': 'False',
+            'sasl.mechanisms': 'PLAIN',
+            'sasl.kerberos.service.name': self.serviceName,
+            'sasl.username': self.username,
+            'sasl.password': self.password
+#            'Falsessl.ca.location': '/home/kafka_dev_ai4eosc_eu_interm_ROOT.cFalseer',
+#            'ssl.key.location': '/home/kafka.dev.ai4eosc.eu.key',
+#            'ssl.certificate.location': '/home/kafka_dev_ai4eosc_eu_cert.cer'
+    }
+
+        # We can tune as args batch_size and linger_ms
+        producer = Producer(**conf)
+
 
         """Push records to logstash using tcp."""
-#       try:
         for record in records:
         #serialization of record
               rec=record.logstash_message()
         #cASO timestamp added to each record
               rec['caso-timestamp']=ct
-        print(records)
-        #Send the record to LS
-#              self.sock.send((json.dumps(rec)+'\n').encode('utf-8'))
-#        except socket.error as e:
-#            raise exception.LogstashConnectionError(
-#                host=self.host, port=self.port, exception=e
-#            )
-#        else:
-#            LOG.info(
-#                "Sent {} records to logstash {}:{}".format(
-#                    len(records), self.host, self.port
-#                )
-#            )
-#        finally:
-#            self.sock.close()
+        
+        #Send the record to Kafka
+
+
+              try:
+                  producer.poll(0)
+                  producer.produce(self.topic, value=json.dumps(rec).encode('utf-8'),
+                            callback=self.delivery_report)
+  
+              except ValueError as err:
+                  print("This alert can't be read" % (err))
+
+        producer.flush()
+
+
+
+
+
+
+
+
+
+
