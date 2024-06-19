@@ -345,6 +345,7 @@ class StorageRecord(_BaseRecord):
     attached_to: typing.Optional[str]
     measure_time: datetime.datetime
     start_time: datetime.datetime
+    volume_creation: int
 
     storage_type: typing.Optional[str] = "Block Storage (cinder)"
 
@@ -410,6 +411,7 @@ class StorageRecord(_BaseRecord):
                 "attached_duration": "AttachedDuration",
                 "cloud_type": "CloudType",
                 "compute_service": "CloudComputeService",
+                "volume_creation": "VolumeCreationTime",
             }
             return d.get(field, field)
 
