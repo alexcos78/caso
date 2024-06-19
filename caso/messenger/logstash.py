@@ -24,7 +24,10 @@ import six
 
 from caso import exception
 import caso.messenger
-
+#add json lib
+import json
+#add datetime lib
+import datetime
 
 opts = [
     cfg.StrOpt("host", default="localhost", help="Logstash host to send records to."),
@@ -49,11 +52,29 @@ class LogstashMessenger(caso.messenger.BaseMessenger):
         self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
     def push(self, records):
+
+        # NOTE(acostantini): code for the serialization and push of the
+        # records in logstash. JSON format to be used and encoding UTF-8
+        """Serialization of records to be sent to logstash"""
+        if not records:
+            return
+
+        #Actual timestamp to be added on each record       
+        cdt = datetime.datetime.now()
+        ct = int(datetime.datetime.now().timestamp())
+
+        #Open the connection with LS
+        self.sock.connect((self.host, self.port))
+
         """Push records to logstash using tcp."""
         try:
-            self.sock.connect((self.host, self.port))
-            for _, record in six.iteritems(records):
-                self.sock.sendall(record.as_json() + "\n")
+          for record in records:
+        #serialization of record
+              rec=record.logstash_message()
+        #cASO timestamp added to each record
+              rec['caso-timestamp']=ct
+        #Send the record to LS
+              self.sock.send((json.dumps(rec)+'\n').encode('utf-8'))
         except socket.error as e:
             raise exception.LogstashConnectionError(
                 host=self.host, port=self.port, exception=e
