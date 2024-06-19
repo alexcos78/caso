@@ -72,7 +72,7 @@ class KafkaMessenger(caso.messenger.BaseMessenger):
 
         # NOTE(acostantini): code for the serialization and push of the
         # records in logstash. JSON format to be used and encoding UTF-8
-        """Serialization of records to be sent to logstash"""
+        """Serialization of records to be sent to logstash via kafka"""
         if not records:
             return
 
@@ -83,7 +83,12 @@ class KafkaMessenger(caso.messenger.BaseMessenger):
         # Producer
         conf = {
             'bootstrap.servers': self.brokers,
-            'security.protocol': 'SASL_PLAINTEXT',
+#            'ssl.truststore.location': "/var/private/ssl/accounting/client.truststore.jks",
+#            'ssl.truststore.password': "admin123",
+            'ssl.ca.location': "/var/private/ssl/accounting/ca.crt",
+#            'ssl.enabled.protocols': "TLSv1.2",
+#            'security.protocol': 'SASL_PLAINTEXT',
+            'security.protocol': 'SASL_SSL',
 #            'enable.ssl.certificate.verification': 'False',
             'sasl.mechanisms': 'PLAIN',
             'sasl.kerberos.service.name': self.serviceName,
