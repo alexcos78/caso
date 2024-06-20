@@ -14,7 +14,7 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 
-"""Module containing a Logstask cASO messenger."""
+"""Module containing a Kafka cASO messenger."""
 
 import socket
 
@@ -49,7 +49,7 @@ class KafkaMessenger(caso.messenger.BaseMessenger):
     """Format and send records to a kafka host."""
 
     def __init__(self, brokers=CONF.kafka.brokers, topic=CONF.kafka.topic, serviceName=CONF.kafka.serviceName, username=CONF.kafka.username, password=CONF.kafka.password):
-        """Get a logstash messenger for a given host and port."""
+        """Get a kafka messenger for a given host and port."""
         super(KafkaMessenger, self).__init__()
         self.brokers = CONF.kafka.brokers
         self.topic = CONF.kafka.topic
@@ -71,7 +71,7 @@ class KafkaMessenger(caso.messenger.BaseMessenger):
     def push(self, records):
 
         # NOTE(acostantini): code for the serialization and push of the
-        # records in logstash. JSON format to be used and encoding UTF-8
+        # records in logstash via kafka. JSON format to be used and encoding UTF-8
         """Serialization of records to be sent to logstash via kafka"""
         if not records:
             return
@@ -90,11 +90,11 @@ class KafkaMessenger(caso.messenger.BaseMessenger):
             'sasl.username': self.username,
             'sasl.password': self.password
 
-        # We can tune as args batch_size and linger_ms
+        # Producer
         producer = Producer(**conf)
 
 
-        """Push records to logstash using tcp."""
+        """Push records to be serialized using logstash_message definition."""
         for record in records:
         #serialization of record
               rec=record.logstash_message()
