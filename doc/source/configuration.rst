@@ -206,7 +206,7 @@ messenger. Available options:
 ----------------------
 
 Options defined here configure the `kafka <https://opensearch.org/docs/latest/data-prepper/pipelines/configuration/sources/kafka/>`_
-messenger. Mandatory options:
+messenger:
 
 * ``brokers`` (default: ``localhost:9092``), endpoint of Kafka server. Port must be provided for each endpoint.
 * ``topic`` (default: ``caso``), Kafka topic.
