@@ -201,6 +201,20 @@ messenger. Available options:
 * ``host`` (default: ``localhost``), host of Logstash server.
 * ``port`` (default: ``5000``), Logstash server port.
 
+``[kafka]`` section
+----------------------
+
+Options defined here configure the `kafka <https://opensearch.org/docs/latest/data-prepper/pipelines/configuration/sources/kafka/>`_
+messenger. Mandatory options:
+
+* ``brokers`` (default: ``localhost:9092``), host of Kafka server. Port must be provided.
+* ``topic`` (default: ``caso``), Kafka topic.
+* ``serviceName`` (default: ``caso``), Kafka service name.
+* ``username`` (default: ``username``), Kafka username.
+* ``password`` (default: ``password``), Kafka password.
+
+Note: the connection to Kafka is SSL enabled. The CA certificate must be provided under `/var/private/ssl/accounting/ca.crt`
+
 Other cASO configuration options
 --------------------------------
 
