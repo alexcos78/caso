@@ -144,6 +144,7 @@ of every option. You should check at least the following options:
 
       * ``ssm`` for publishing APEL records.
       * ``logstash`` for publishing to Logstash.
+      * ``kafka`` for publishing to Kafka.
       * ``noop`` do nothing at all.
 
   Note that there might be other messengers available in the system if they are
