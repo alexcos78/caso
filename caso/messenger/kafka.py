@@ -106,7 +106,7 @@ class KafkaMessenger(caso.messenger.BaseMessenger):
         """Push records to logstash using tcp."""
         for record in records:
         #serialization of record
-              rec=record.logstash_message()
+              rec=record.serialization_message()
         #cASO timestamp added to each record
               rec['caso-timestamp']=ct
         

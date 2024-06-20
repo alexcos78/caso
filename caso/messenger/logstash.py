@@ -70,7 +70,7 @@ class LogstashMessenger(caso.messenger.BaseMessenger):
         try:
           for record in records:
         #serialization of record
-              rec=record.logstash_message()
+              rec=record.serlialization_message()
         #cASO timestamp added to each record
               rec['caso-timestamp']=ct
         #Send the record to LS

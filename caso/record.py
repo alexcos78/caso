@@ -48,7 +48,7 @@ class _BaseRecord(pydantic.BaseModel, abc.ABC):
         """Render record as the expected SSM message."""
         raise NotImplementedError("Method not implemented")
 
-    def logstash_message(self):
+    def serialization_message(self):
         """Render record as the expected logstash message."""
         opts = {
             "by_alias": True,
