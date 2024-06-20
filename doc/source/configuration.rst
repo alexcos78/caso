@@ -214,7 +214,7 @@ messenger. Mandatory options:
 * ``username`` (default: ``username``), Kafka username.
 * ``password`` (default: ``password``), Kafka password.
 
-Note: the connection to Kafka is SSL enabled. The CA certificate (base64) must be provided under `/var/private/ssl/accounting/ca.crt` of the host running cASO.
+Note: the connection to Kafka is Simple Authentication and Security Layer (SASL) authentication configuration enabled. SSL is also enabled. The CA certificate (base64) must be provided under `/var/private/ssl/accounting/ca.crt` of the host running cASO.
 
 Other cASO configuration options
 --------------------------------
