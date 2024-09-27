@@ -16,18 +16,16 @@
 
 """Module containing a Logstask cASO messenger."""
 
+import json
+import datetime
 import socket
 
 from oslo_config import cfg
 from oslo_log import log
-import six
 
 from caso import exception
 import caso.messenger
-#add json lib
-import json
-#add datetime lib
-import datetime
+
 
 opts = [
     cfg.StrOpt("host", default="localhost", help="Logstash host to send records to."),
@@ -55,26 +53,21 @@ class LogstashMessenger(caso.messenger.BaseMessenger):
 
         # NOTE(acostantini): code for the serialization and push of the
         # records in logstash. JSON format to be used and encoding UTF-8
-        """Serialization of records to be sent to logstash"""
         if not records:
             return
 
-        #Actual timestamp to be added on each record       
-        cdt = datetime.datetime.now()
+        # Actual timestamp to be added on each record
         ct = int(datetime.datetime.now().timestamp())
 
-        #Open the connection with LS
+        # Open the connection with LS
         self.sock.connect((self.host, self.port))
 
-        """Push records to logstash using tcp."""
         try:
-          for record in records:
-        #serialization of record
-              rec=record.serialization_message()
-        #cASO timestamp added to each record
-              rec['caso-timestamp']=ct
-        #Send the record to LS
-              self.sock.send((json.dumps(rec)+'\n').encode('utf-8'))
+            for record in records:
+                # serialization of record
+                rec = record.serialization_message()
+                rec["caso-timestamp"] = ct
+                self.sock.send((json.dumps(rec) + "\n").encode("utf-8"))
         except socket.error as e:
             raise exception.LogstashConnectionError(
                 host=self.host, port=self.port, exception=e
