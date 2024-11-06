@@ -237,6 +237,22 @@
 # Enables or disables fatal status of deprecations. (boolean value)
 #fatal_deprecations = false
 
+# InfluxDB integration
+#URL from influx-db
+#influx_url = <INFLUXDB_URL:PORT>
+
+#Token from influx-db
+#influx_token = <INFLUXDB_TOKEN>
+
+#Organization from influx-db
+#influx_org = <INFLUXDB_ORGANIZATION>
+
+#Bucket from influx-db
+#influx_bucket = <INFLUXDB_BUCKET>
+
+#Full path file containing data from influx-db
+#influx_filename = <FULL_PATH_TO_FILENAME_TO_BE_CREATED>
+
 
 [accelerator]
 
