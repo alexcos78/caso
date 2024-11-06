@@ -18,6 +18,12 @@
 
 import operator
 
+import os
+import shutil
+import json
+import ast
+from influxdb_client import InfluxDBClient
+
 import dateutil.parser
 from dateutil.relativedelta import relativedelta
 from dateutil.rrule import MONTHLY
@@ -72,12 +78,44 @@ benchmark_opts = [
     ),
 ]
 
+#Opts for influxdb
+opts = [
+    cfg.StrOpt(
+        'influx_url',
+        help='URL from influx-db',
+    ),
+    cfg.StrOpt(
+        'influx_token',
+        help='Token from influx-db',
+    ),
+    cfg.StrOpt(
+        'influx_org',
+        help='Organization from influx-db',
+    ),
+    cfg.StrOpt(
+        'influx_bucket',
+        help='Bucket from influx-db',
+    ),
+    cfg.StrOpt(
+        'influx_filename',
+        help='Full path file containing data from influx-db',
+    ),
+]
+
 CONF = cfg.CONF
 
 CONF.import_opt("region_name", "caso.extract.openstack")
 CONF.import_opt("site_name", "caso.extract.base")
 CONF.register_opts(benchmark_opts, group="benchmark")
 CONF.register_opts(accelerator_opts, group="accelerator")
+
+#Conf for influxdb
+CONF.import_opt("influx_url", "caso.extract.base")
+CONF.import_opt("influx_token", "caso.extract.base")
+CONF.import_opt("influx_org", "caso.extract.base")
+CONF.import_opt("influx_bucket", "caso.extract.base")
+CONF.import_opt("influx_filename", "caso.extract.base")
+CONF.register_opts(opts)
 
 LOG = log.getLogger(__name__)
 
@@ -88,6 +126,108 @@ class NovaExtractor(base.BaseOpenStackExtractor):
     def __init__(self, project, vo):
         """Get a Nova record extractor for a given project."""
         super(NovaExtractor, self).__init__(project, vo)
+
+
+        # #########################Data from influxDB (CPUTime)##########################
+        #define dictionaries
+        #CPU actual
+        self.influx_table = dict()
+        #HYPERVISOR actual
+        self.influx_table_hyp = dict()
+        #Migration time: time spent in the HYP after migration
+        self.influx_table_mig = dict()
+        #CPU previous
+        self.influx_tableprev = dict()
+        #HYPERVISOR previous
+        self.influx_tableprev_hyp = dict()
+        #Migration time previous: time spent in the HYP after migration, previous step
+        self.influx_tableprev_mig = dict()
+        #Define files
+        influx_filename_prev_cpu = str(CONF.influx_filename) + '_prev_cpu'
+        influx_filename_prev_hyp = str(CONF.influx_filename) + '_prev_hyp'
+        influx_filename_prev_mig = str(CONF.influx_filename) + '_prev_mig'
+
+        #Collect actual data from influxdb
+        with InfluxDBClient(url=CONF.influx_url, token=CONF.influx_token, org=CONF.influx_org) as client:
+            query_api = client.query_api()
+            tables = query_api.query('from(bucket: "' + CONF.influx_bucket +'") |> range(start: -1h) |> filter(fn: (r) => r.type == "virt_cpu_total") |> last()')
+            for table in tables:
+                for record in table.records:
+                    srv_id =  record["instance"]
+                    hyp = record["host"]
+                    self.influx_table[srv_id] = int(record["_value"] / 1000000000)
+                    self.influx_table_hyp[srv_id] = hyp
+                    self.influx_table_mig[srv_id] = 0
+
+        #Step zero: collect data into files for next iteration
+        if not os.path.exists(influx_filename_prev_cpu):
+            with open(influx_filename_prev_cpu, 'w') as previous_cpu:
+                previous_cpu.write(json.dumps(self.influx_table))
+                previous_cpu.close()
+        if not os.path.exists(influx_filename_prev_hyp):
+            with open(influx_filename_prev_hyp, 'w') as previous_hyp:
+                previous_hyp.write(json.dumps(self.influx_table_hyp))
+                previous_hyp.close()
+        if not os.path.exists(influx_filename_prev_mig):
+            with open(influx_filename_prev_mig, 'w') as mig:
+                mig.write(json.dumps(self.influx_table_mig))
+                mig.close()
+                
+        #Open existing files and convert to dicttionaries
+        else:
+            with open(influx_filename_prev_hyp) as previous_hyp:
+                self.influx_tableprev_hyp = ast.literal_eval(previous_hyp.read())
+                previous_hyp.close()
+            with open(influx_filename_prev_cpu) as previous_cpu:
+                self.influx_tableprev = ast.literal_eval(previous_cpu.read())
+                previous_cpu.close()
+            with open(influx_filename_prev_mig) as mig:
+                self.influx_tableprev_mig = ast.literal_eval(mig.read())
+                mig.close()
+
+        #select common keys among latest and previous HYP dicttionary
+        common_keys = set(self.influx_tableprev_hyp.keys()).intersection(self.influx_table_hyp.keys())
+
+        for key in common_keys:
+        #case#1: if last hyp != previous hyp, sum prev and actual time
+            if self.influx_table_hyp[key] != self.influx_tableprev_hyp[key]:
+        #reset mig dictionary
+                self.influx_table_mig[key] = self.influx_table[key]
+        #update CPU dictionary
+                self.influx_table[key] = self.influx_table[key] + self.influx_tableprev[key]
+        #case#2: if last hyp == previous hyp (after migration)...
+            elif self.influx_table_hyp[key] == self.influx_tableprev_hyp[key] and self.influx_table_mig[key] > 0:
+        #update mig t(n)
+                self.influx_table_mig[key] = self.influx_table[key]
+        #update CPU actual
+                self.influx_table[key] = self.influx_tableprev[key] + (self.influx_table[key] - self.influx_tableprev_mig[key])
+        #case#3: first migration and subsequent migration tho the initial hyp. It covers also stop&restart and resize of the vm
+            elif self.influx_table_hyp[key] == self.influx_tableprev_hyp[key] and self.influx_tableprev_mig[key] == 0 and self.influx_table[key] < self.influx_tableprev[key]:
+        #update mig t(n)
+                self.influx_table_mig[key] = self.influx_table[key]
+        #update CPU actual
+                self.influx_table[key] = self.influx_table[key] + self.influx_tableprev[key]
+        #case4#: after first migration: migration and subsequent migration tho the initial hyp. It covers also stop&restart and resize of the vm
+            elif self.influx_table_hyp[key] == self.influx_tableprev_hyp[key] and self.influx_tableprev_mig[key] > 0 and self.influx_table[key] < self.influx_tableprev_mig[key]:#update mig t(n)
+                self.influx_table_mig[key] = self.influx_table[key]
+        #update CPU actual
+                self.influx_table[key] = self.influx_table[key] + self.influx_tableprev[key]
+            else:
+                continue
+                
+        #save dictionaries into influx_filename_prev* for next iteration
+        with open(influx_filename_prev_cpu, 'w') as previous:
+            previous.write(json.dumps(self.influx_table))
+            previous.close()
+        with open(influx_filename_prev_hyp, 'w') as previous_hyp:
+            previous_hyp.write(json.dumps(self.influx_table_hyp))
+            previous.close()
+        with open(influx_filename_prev_mig, 'w') as mig:
+            mig.write(json.dumps(self.influx_table_mig))
+            mig.close()
+        # #####################################################################
+
+        
 
         self.nova = self._get_nova_client()
         self.glance = self._get_glance_client()
