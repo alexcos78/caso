@@ -104,6 +104,8 @@ opts = [
 
 CONF = cfg.CONF
 
+CONF.register_opts(opts)
+
 CONF.import_opt("region_name", "caso.extract.openstack")
 CONF.import_opt("site_name", "caso.extract.base")
 CONF.register_opts(benchmark_opts, group="benchmark")
